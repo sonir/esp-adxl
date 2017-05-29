@@ -133,7 +133,7 @@ void loop() {
 
   if (count > LOOP_INTERVAL) {
     count = 0;
-    taptype = tapCheck();
+    tapCheck();
 
     // DATAX0レジスタから6バイトを取得
     readRegister(DATAX0, 6, values);
@@ -264,16 +264,16 @@ void readRegister(char registerAddress, int16_t numBytes, char * values) {
 }
 
 
-int tapCheck(void){
+void tapCheck(void){
   //Clear the interrupts on the ADXL345
   readRegister(INT_SOURCE, 1, values);
   Serial.println(boolean(values[5]));
   if(int(values[5]) >= 254){
-    return (1);
+    tapType = 1;
   }else if(int(values[5]) == 1){
-    return (2);
+    tapType = 2;
   }else{ // undetected
-    return (0);
+    tapType = 0;
   }
 }
 
