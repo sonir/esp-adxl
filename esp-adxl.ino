@@ -188,7 +188,7 @@ void loop() {
       }
       detachInterrupt(0);
       delay(10);
-      attachInterrupt(0, tap, RISING);
+      attachInterrupt(0, tapCheck, RISING);
       tapType = 0;
     }
 
