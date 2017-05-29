@@ -70,6 +70,9 @@ char test_single[1];
 char test_double[1];
 char tapType = 0;
 
+int raw_param = 0
+
+
 void setup() {
 
   //// START ADXL ////
@@ -268,6 +271,7 @@ void tapCheck(void){
   //Clear the interrupts on the ADXL345
   readRegister(INT_SOURCE, 1, values);
   Serial.println(boolean(values[5]));
+  raw_param=int(values[5]);
   if(int(values[5]) >= 254){
     tapType = 1;
   }else if(int(values[5]) == 1){
