@@ -84,8 +84,8 @@ void setup() {
   // Set CS to High
   pinMode(CS, OUTPUT);
   digitalWrite(CS, HIGH);
-  attachInterrupt(0, tap, RISING);
-  tap();
+  attachInterrupt(0, tapCheck, RISING);
+  // tapType = tapCheck();
 
   // Init ADXL345
   writeRegister(DATA_FORMAT, 0x01); // ±16g 10bit
