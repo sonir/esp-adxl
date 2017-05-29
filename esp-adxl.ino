@@ -1,8 +1,15 @@
 
 //SETUPS
+#define LOOP_INTERVAL 5000 //
+
+
 //Tap Threath (0x00 - 0xFF)
 #define TAP_THREATH_PARAM 0x38
-#define TIMER_INTERVAL 5000
+#define DURATION_PARAM 0xFF
+
+#define  LATENT_PARAM 0x50 //Interval for double tap Detection
+#define WINDOW_PARAM 0xFF //Interbal restart detection after doubletap detection
+
 
 
 //to using ESP
@@ -15,7 +22,7 @@
 //to using OSC
 #include <OSCBundle.h>
 
-//to connect with SPI 
+//to connect with SPI
 #include <SPI.h>
 #define CS 5 //デフォルトから設定を変更して再定義(IO15 -> IO5)
 
@@ -47,7 +54,7 @@ const unsigned int sendPort = 55555;         //こちらから送信するポー
 const IPAddress myGateWay(192, 168, 100, 1);
 const IPAddress mySubnet(255, 255, 255, 0);
 
-// Counter to delay loop 
+// Counter to delay loop
 int count;
 
 //// Sensing ////
@@ -73,8 +80,8 @@ void setup() {
   SPI.setBitOrder(MSBFIRST);
 
   Serial.begin(115200);
-  
-  // Set CS to High 
+
+  // Set CS to High
   pinMode(CS, OUTPUT);
   digitalWrite(CS, HIGH);
   attachInterrupt(0, tap, RISING);
@@ -82,7 +89,7 @@ void setup() {
 
   // Init ADXL345
   writeRegister(DATA_FORMAT, 0x01); // ±16g 10bit
-  
+
   //Send the Tap and Double Tap Interrupts to INT1 pin
   writeRegister(INT_MAP, 0x9F);
   //Look for taps on the Z axis(01) only.
@@ -90,11 +97,11 @@ void setup() {
   //Set the Tap Threshold to 3g
   writeRegister(THRESH_TAP, TAP_THREATH_PARAM); // The most weak = 0 , Themost Hard = 0xFF
   //Set the Tap Duration that must be reached
-  writeRegister(DURATION, 0xFF);
+  writeRegister(DURATION, DURATION_PARAM);
 
   //100ms Latency before the second tap can occur.
-  writeRegister(LATENT, 0x50);
-  writeRegister(WINDOW, 0xFF);
+  writeRegister(LATENT, LATENT_PARAM); //Interval for double tap Detection
+  writeRegister(WINDOW, WINDOW_PARAM); //Interbal restart detection after doubletap detection
 
   //Enable the Single and Double Taps.
   writeRegister(INT_ENABLE, 0xE0);
@@ -106,12 +113,12 @@ void setup() {
   //Start WiFi Connection
   wifiStart();
 
-  
+
 }
 
 void loop() {
 
-  //もし何らかの事態でWifiが接続されていないときは、Wifi再接続する
+  //Reconnect WiFi :: if the connection was interrupts
   if (WiFi.status() == WL_NO_SSID_AVAIL ||
       WiFi.status() == WL_CONNECTION_LOST ||
       WiFi.status() == WL_DISCONNECTED) {
@@ -120,13 +127,13 @@ void loop() {
     wifiStart();
   }
 
-  
-  //Increment count for timer 
+
+  //Increment count for timer
   count++;
-  
-  if (count > TIMER_INTERVAL) {
+
+  if (count > LOOP_INTERVAL) {
     count = 0;
-    tap();
+    taptype = tapCheck();
 
     // DATAX0レジスタから6バイトを取得
     readRegister(DATAX0, 6, values);
@@ -135,13 +142,13 @@ void loop() {
     x  = ((int16_t)values[1] << 8) | (int16_t)values[0];
     y  = ((int16_t)values[3] << 8) | (int16_t)values[2];
     z  = ((int16_t)values[5] << 8) | (int16_t)values[4];
-       
+
     // rescale-xyz
     normalized_x = normalize(x,RANGE_MAX);
     normalized_y = normalize(y,RANGE_MAX);
     normalized_z = normalize(z,RANGE_MAX);
-        
-    
+
+
     // ログ出力
     Serial.print(normalized_x);
     Serial.print("\t");
@@ -164,6 +171,7 @@ void loop() {
         msg4.empty();
         //パケット終わって、メッセージを空っぽにクリア
         delay(100);
+
       } else {
         Serial.println("DOUBLE TAP");
         //OSCメッセージをつくる
@@ -256,16 +264,16 @@ void readRegister(char registerAddress, int16_t numBytes, char * values) {
 }
 
 
-void tap(void){
+int tapCheck(void){
   //Clear the interrupts on the ADXL345
-  readRegister(INT_SOURCE, 1, values); 
+  readRegister(INT_SOURCE, 1, values);
   Serial.println(boolean(values[5]));
   if(int(values[5]) >= 254){
-    tapType=1;
+    return (1);
   }else if(int(values[5]) == 1){
-    tapType=2;
-  }else{
-    tapType=0;
+    return (2);
+  }else{ // undetected
+    return (0);
   }
 }
 
