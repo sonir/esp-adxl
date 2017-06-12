@@ -1,13 +1,15 @@
 //SETUPS
-#define LOOP_INTERVAL 50 // main loop interval
+#define LOOP_INTERVAL 100 //
 
 
 //Tap Threath (0x00 - 0xFF)
 #define TAP_THREATH_PARAM 0x22
 #define DURATION_PARAM 0x90
 
-#define  LATENT_PARAM 0x60 //Interval for double tap Detection
-#define WINDOW_PARAM 0x50 //Interbal restart detection after doubletap detection
+//#define  LATENT_PARAM 0x50 //Interval for double tap Detection
+//#define WINDOW_PARAM 0x50 //Interbal restart detection after doubletap detection
+#define  LATENT_PARAM 0x01 //Interval for double tap Detection
+#define WINDOW_PARAM 0x01 //Interbal restart detection after doubletap detection
 
 
 
@@ -42,15 +44,18 @@ char ssid[] = "tone"; //  your network SSID (name)
 char pass[] = "isana137";    // your network password
 
 // IP Address of itself
-const IPAddress myIP(192, 168, 100, 111);      //固定IP
-const unsigned int receivePort = 9999;      //こちらで受信するポート
+//const IPAddress myIP(192, 168, 100, 111);      //固定IP
+const IPAddress myIP(192, 168, 43, 111);      //固定IP
+const unsigned int receivePort = 57111;      //こちらで受信するポート
 
 // IP Address of Server
-const IPAddress outIp(192, 168, 100, 101);      //相手(PC)のIP
-const unsigned int sendPort = 55555;         //こちらから送信するポート
+//const IPAddress outIp(192, 168, 100, 101);      //相手(PC)のIP
+const IPAddress outIp(192, 168, 43, 216);      //相手(PC)のIP
+const unsigned int sendPort = 57110;         //こちらから送信するポート
 
 // Router Setup
-const IPAddress myGateWay(192, 168, 100, 1);
+//const IPAddress myGateWay(192, 168, 100, 1);
+const IPAddress myGateWay(192, 168, 43, 1);
 const IPAddress mySubnet(255, 255, 255, 0);
 
 // Counter to delay loop
@@ -181,7 +186,7 @@ void loop() {
         msg5.add(1);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
-        msg5.send(Udp);
+//        msg5.send(Udp);
         Udp.endPacket();
         msg5.empty();
         delay(100);
@@ -201,7 +206,7 @@ void loop() {
     msg1.add((float)normalized_x);
     //上のOSCメッセージをパケットにして送る
     Udp.beginPacket(outIp, sendPort);
-    msg1.send(Udp);
+//    msg1.send(Udp);
     Udp.endPacket();
     msg1.empty();
     //パケット終わって、メッセージを空っぽにクリア
@@ -214,7 +219,7 @@ void loop() {
     msg2.add((float)normalized_y);
     //上のOSCメッセージをパケットにして送る
     Udp.beginPacket(outIp, sendPort);
-    msg2.send(Udp);
+//    msg2.send(Udp);
     Udp.endPacket();
     msg2.empty();
     //パケット終わって、メッセージを空っぽにクリア
@@ -228,7 +233,7 @@ void loop() {
     msg3.add((float)normalized_z);
     //上のOSCメッセージをパケットにして送る
     Udp.beginPacket(outIp, sendPort);
-    msg3.send(Udp);
+//    msg3.send(Udp);
     Udp.endPacket();
     msg3.empty();
     //パケット終わって、メッセージを空っぽにクリア
