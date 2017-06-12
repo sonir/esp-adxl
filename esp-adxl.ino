@@ -1,14 +1,13 @@
-
 //SETUPS
-#define LOOP_INTERVAL 5000 //
+#define LOOP_INTERVAL 50 // main loop interval
 
 
 //Tap Threath (0x00 - 0xFF)
-#define TAP_THREATH_PARAM 0x38
-#define DURATION_PARAM 0xFF
+#define TAP_THREATH_PARAM 0x22
+#define DURATION_PARAM 0x90
 
-#define  LATENT_PARAM 0x50 //Interval for double tap Detection
-#define WINDOW_PARAM 0xFF //Interbal restart detection after doubletap detection
+#define  LATENT_PARAM 0x60 //Interval for double tap Detection
+#define WINDOW_PARAM 0x50 //Interbal restart detection after doubletap detection
 
 
 
@@ -69,8 +68,6 @@ float normalized_z;
 char test_single[1];
 char test_double[1];
 char tapType = 0;
-
-int raw_param = 0
 
 
 void setup() {
@@ -158,7 +155,7 @@ void loop() {
     Serial.print(normalized_y);
     Serial.print("\t");
     Serial.println(normalized_z);
-
+        
     if (tapType > 0) {
       if (tapType == 1) {
         Serial.println("SINGLE TAP");
@@ -266,17 +263,17 @@ void readRegister(char registerAddress, int16_t numBytes, char * values) {
   digitalWrite(CS, HIGH);
 }
 
-
-void tapCheck(void){
-  //Clear the interrupts on the ADXL345
+void tapCheck(void) {
+  //read tap_detection_registor and Clear the interrupts on the ADXL345
   readRegister(INT_SOURCE, 1, values);
-  Serial.println(boolean(values[5]));
-  raw_param=int(values[5]);
-  if(int(values[5]) >= 254){
-    tapType = 1;
-  }else if(int(values[5]) == 1){
+  Serial.println(int(values[0]));
+  //DOUBLE TAP detection (1<<5) == 0010 0000
+  if (values[0] & (1<<5)) {
     tapType = 2;
-  }else{ // undetected
+  //SINGLE TAP detection (1<<6) == 0100 0000
+  } else if (values[0] & (1<<6)) {
+    tapType = 1;
+  } else { // undetected
     tapType = 0;
   }
 }
