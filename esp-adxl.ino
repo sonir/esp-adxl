@@ -3,8 +3,8 @@
 
 
 //Tap Threath (0x00 - 0xFF)
-#define TAP_THREATH_PARAM 0x22
-#define DURATION_PARAM 0x90
+#define TAP_THREATH_PARAM 0x82//0x22
+#define DURATION_PARAM 0x8C//0x90
 
 //#define  LATENT_PARAM 0x50 //Interval for double tap Detection
 //#define WINDOW_PARAM 0x50 //Interbal restart detection after doubletap detection
@@ -44,18 +44,18 @@ char ssid[] = "tone"; //  your network SSID (name)
 char pass[] = "isana137";    // your network password
 
 // IP Address of itself
-//const IPAddress myIP(192, 168, 100, 111);      //固定IP
-const IPAddress myIP(192, 168, 43, 111);      //固定IP
+const IPAddress myIP(192, 168, 100, 220);      //固定IP
+//const IPAddress myIP(192, 168, 43, 111);      //固定IP
 const unsigned int receivePort = 57111;      //こちらで受信するポート
 
 // IP Address of Server
-//const IPAddress outIp(192, 168, 100, 101);      //相手(PC)のIP
-const IPAddress outIp(192, 168, 43, 216);      //相手(PC)のIP
-const unsigned int sendPort = 57110;         //こちらから送信するポート
+const IPAddress outIp(192, 168, 100, 101);      //相手(PC)のIP
+//const IPAddress outIp(192, 168, 43, 216);      //相手(PC)のIP
+const unsigned int sendPort = 57137;         //こちらから送信するポート
 
 // Router Setup
-//const IPAddress myGateWay(192, 168, 100, 1);
-const IPAddress myGateWay(192, 168, 43, 1);
+const IPAddress myGateWay(192, 168, 100, 1);
+//const IPAddress myGateWay(192, 168, 43, 1);
 const IPAddress mySubnet(255, 255, 255, 0);
 
 // Counter to delay loop
@@ -165,9 +165,9 @@ void loop() {
       if (tapType == 1) {
         Serial.println("SINGLE TAP");
         //OSCメッセージをつくる
-        OSCMessage msg4("/ch4");
+        OSCMessage msg4("/ch1");
         //数値をint型＝整数にする（数値はintかfloatのみ
-        msg4.add(0);
+        msg4.add(8);
         msg4.add(1);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
