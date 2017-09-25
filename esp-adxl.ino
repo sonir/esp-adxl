@@ -1,9 +1,13 @@
 //SETUPS
 #define LOOP_INTERVAL 100 //
 
+//#define ROLE 13 //13 is ALL inst
+#define ROLE 13 //14 is beat
+// set My ip ROLE13=192, 168, 100, 220 || 192, 168, 100, 221
+
 
 //Tap Threath (0x00 - 0xFF)
-#define TAP_THREATH_PARAM 0x82//0x22
+#define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled 
 #define DURATION_PARAM 0x8C//0x90
 
 //#define  LATENT_PARAM 0x50 //Interval for double tap Detection
@@ -45,12 +49,13 @@ char pass[] = "isana137";    // your network password
 
 // IP Address of itself
 const IPAddress myIP(192, 168, 100, 220);      //固定IP
+//const IPAddress myIP(192, 168, 100, 220);      //固定IP
 //const IPAddress myIP(192, 168, 43, 111);      //固定IP
 const unsigned int receivePort = 57111;      //こちらで受信するポート
 
 // IP Address of Server
+//const IPAddress outIp(224, 0, 0, 1);      //相手(PC)のIP
 const IPAddress outIp(192, 168, 100, 101);      //相手(PC)のIP
-//const IPAddress outIp(192, 168, 43, 216);      //相手(PC)のIP
 const unsigned int sendPort = 57137;         //こちらから送信するポート
 
 // Router Setup
@@ -167,7 +172,7 @@ void loop() {
         //OSCメッセージをつくる
         OSCMessage msg4("/ch1");
         //数値をint型＝整数にする（数値はintかfloatのみ
-        msg4.add(8);
+        msg4.add(ROLE);
         msg4.add(1);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
