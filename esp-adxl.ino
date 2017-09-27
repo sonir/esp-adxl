@@ -1,9 +1,10 @@
 //SETUPS
 #define LOOP_INTERVAL 100 //
 
-//#define ROLE 13 //13 is ALL inst
-#define ROLE 13 //14 is beat
-// set My ip ROLE13=192, 168, 100, 220 || 192, 168, 100, 221
+//#define ROLE 0 //0 is A
+#define ROLE 1 //1 is B
+// set My ip ROLE 0 = 192, 168, 100, 220
+// set My ip ROLE 1 = 192, 168, 100, 221
 
 
 //Tap Threath (0x00 - 0xFF)
@@ -48,8 +49,8 @@ char ssid[] = "tone"; //  your network SSID (name)
 char pass[] = "isana137";    // your network password
 
 // IP Address of itself
-const IPAddress myIP(192, 168, 100, 220);      //固定IP
 //const IPAddress myIP(192, 168, 100, 220);      //固定IP
+const IPAddress myIP(192, 168, 100, 221);      //固定IP
 //const IPAddress myIP(192, 168, 43, 111);      //固定IP
 const unsigned int receivePort = 57111;      //こちらで受信するポート
 
@@ -170,10 +171,9 @@ void loop() {
       if (tapType == 1) {
         Serial.println("SINGLE TAP");
         //OSCメッセージをつくる
-        OSCMessage msg4("/ch1");
+        OSCMessage msg4("/tap");
         //数値をint型＝整数にする（数値はintかfloatのみ
         msg4.add(ROLE);
-        msg4.add(1);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
         msg4.send(Udp);
@@ -185,10 +185,9 @@ void loop() {
       } else {
         Serial.println("DOUBLE TAP");
         //OSCメッセージをつくる
-        OSCMessage msg5("/ch5");
+        OSCMessage msg5("/double_tap");
         //数値をint型＝整数にする（数値はintかfloatのみ）
-        msg5.add(0);
-        msg5.add(1);
+        msg5.add(ROLE);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
 //        msg5.send(Udp);
