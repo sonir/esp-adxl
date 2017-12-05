@@ -1,11 +1,8 @@
 //SETUPS
 #define LOOP_INTERVAL 100 //
 
-//#define ROLE 0 //0 is A
-#define ROLE 1 //1 is B
-// set My ip ROLE 0 = 192, 168, 100, 220
-// set My ip ROLE 1 = 192, 168, 100, 221
-
+//set UID
+#define UID 1 //1 is A
 
 //Tap Threath (0x00 - 0xFF)
 #define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled 
@@ -36,6 +33,9 @@
 #include "adxl.h"
 #define RANGE_MAX 127 //normalize range_max
 
+//Set nano's EYE LED PIN
+#define EYEPIN 16
+
 
 
 
@@ -49,10 +49,9 @@ char ssid[] = "tone"; //  your network SSID (name)
 char pass[] = "isana137";    // your network password
 
 // IP Address of itself
-//const IPAddress myIP(192, 168, 100, 220);      //固定IP
 const IPAddress myIP(192, 168, 100, 221);      //固定IP
-//const IPAddress myIP(192, 168, 43, 111);      //固定IP
 const unsigned int receivePort = 57111;      //こちらで受信するポート
+
 
 // IP Address of Server
 //const IPAddress outIp(224, 0, 0, 1);      //相手(PC)のIP
@@ -61,7 +60,6 @@ const unsigned int sendPort = 57137;         //こちらから送信するポー
 
 // Router Setup
 const IPAddress myGateWay(192, 168, 100, 1);
-//const IPAddress myGateWay(192, 168, 43, 1);
 const IPAddress mySubnet(255, 255, 255, 0);
 
 // Counter to delay loop
@@ -80,6 +78,12 @@ char test_single[1];
 char test_double[1];
 char tapType = 0;
 
+//// LED ////
+int led_uid = 100;
+int led_val = 100;
+int LED_PARAM = 50;
+
+
 
 void setup() {
 
@@ -97,6 +101,10 @@ void setup() {
   digitalWrite(CS, HIGH);
   attachInterrupt(0, tapCheck, RISING);
   // tapType = tapCheck();
+
+  // Set LED to LOW
+  pinMode(EYEPIN,OUTPUT);
+  analogWrite(EYEPIN, LED_PARAM);
 
   // Init ADXL345
   writeRegister(DATA_FORMAT, 0x01); // ±16g 10bit
@@ -146,6 +154,7 @@ void loop() {
     count = 0;
     tapCheck();
 
+
     // DATAX0レジスタから6バイトを取得
     readRegister(DATAX0, 6, values);
 
@@ -155,9 +164,9 @@ void loop() {
     z  = ((int16_t)values[5] << 8) | (int16_t)values[4];
 
     // rescale-xyz
-    normalized_x = normalize(x,RANGE_MAX);
-    normalized_y = normalize(y,RANGE_MAX);
-    normalized_z = normalize(z,RANGE_MAX);
+    normalized_x = normalize(x, RANGE_MAX);
+    normalized_y = normalize(y, RANGE_MAX);
+    normalized_z = normalize(z, RANGE_MAX);
 
 
     // ログ出力
@@ -166,14 +175,15 @@ void loop() {
     Serial.print(normalized_y);
     Serial.print("\t");
     Serial.println(normalized_z);
-        
+
+    //make message
     if (tapType > 0) {
       if (tapType == 1) {
         Serial.println("SINGLE TAP");
         //OSCメッセージをつくる
         OSCMessage msg4("/tap");
         //数値をint型＝整数にする（数値はintかfloatのみ
-        msg4.add(ROLE);
+        msg4.add(UID);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
         msg4.send(Udp);
@@ -187,10 +197,10 @@ void loop() {
         //OSCメッセージをつくる
         OSCMessage msg5("/double_tap");
         //数値をint型＝整数にする（数値はintかfloatのみ）
-        msg5.add(ROLE);
+        msg5.add(UID);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
-//        msg5.send(Udp);
+        //        msg5.send(Udp);
         Udp.endPacket();
         msg5.empty();
         delay(100);
@@ -201,7 +211,7 @@ void loop() {
       tapType = 0;
     }
 
-    //sendOSC
+    //send xyz-axes message
     //X
     //OSCメッセージをつくる
     OSCMessage msg1("/ch1");
@@ -210,7 +220,7 @@ void loop() {
     msg1.add((float)normalized_x);
     //上のOSCメッセージをパケットにして送る
     Udp.beginPacket(outIp, sendPort);
-//    msg1.send(Udp);
+    //    msg1.send(Udp);
     Udp.endPacket();
     msg1.empty();
     //パケット終わって、メッセージを空っぽにクリア
@@ -223,7 +233,7 @@ void loop() {
     msg2.add((float)normalized_y);
     //上のOSCメッセージをパケットにして送る
     Udp.beginPacket(outIp, sendPort);
-//    msg2.send(Udp);
+    //    msg2.send(Udp);
     Udp.endPacket();
     msg2.empty();
     //パケット終わって、メッセージを空っぽにクリア
@@ -237,10 +247,22 @@ void loop() {
     msg3.add((float)normalized_z);
     //上のOSCメッセージをパケットにして送る
     Udp.beginPacket(outIp, sendPort);
-//    msg3.send(Udp);
+    //    msg3.send(Udp);
     Udp.endPacket();
     msg3.empty();
     //パケット終わって、メッセージを空っぽにクリア
+
+
+    //// LED ////
+    led_bundleReceive();
+    if (led_uid == UID) {
+      if (led_val == 1) {
+        analogWrite(EYEPIN, LED_PARAM);
+      } else {
+        digitalWrite(EYEPIN, LOW);
+
+      }
+    }
   }
 }
 
@@ -277,19 +299,19 @@ void tapCheck(void) {
   readRegister(INT_SOURCE, 1, values);
   Serial.println(int(values[0]));
   //DOUBLE TAP detection (1<<5) == 0010 0000
-  if (values[0] & (1<<5)) {
+  if (values[0] & (1 << 5)) {
     tapType = 2;
-  //SINGLE TAP detection (1<<6) == 0100 0000
-  } else if (values[0] & (1<<6)) {
+    //SINGLE TAP detection (1<<6) == 0100 0000
+  } else if (values[0] & (1 << 6)) {
     tapType = 1;
   } else { // undetected
     tapType = 0;
   }
 }
 
-float normalize(float num,float range_max){
-  float norm = num/range_max;
-  return(norm);
+float normalize(float num, float range_max) {
+  float norm = num / range_max;
+  return (norm);
 }
 
 
@@ -337,21 +359,23 @@ void printWifiStatus() {
 
 
 
-//OSC受信の処理
-void bundleReceive() {
+//LED_OSC受信の処理
+void led_bundleReceive() {
   OSCMessage msgIN;
   int size;
   if ((size = Udp.parsePacket()) > 0) {
     while (size--)
       msgIN.fill(Udp.read());
     if (!msgIN.hasError()) {
-      msgIN.route("/value", handleMessage);
+      msgIN.route("/led", handleMessage);
     }
   }
 }
 
-//OSC受信したメッセージから、0番目のデータを整数で取り出す
+//OSC受信したメッセージから、0番目のデータを取り出す
 void handleMessage(OSCMessage & msg, int addrOffset ) {
   int val = msg.getInt(0);
-  Serial.println(val);
+  led_uid = msg.getInt(0);
+  led_val = msg.getInt(1);
+  
 }
