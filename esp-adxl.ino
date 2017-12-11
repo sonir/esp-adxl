@@ -6,7 +6,7 @@
 
 //Tap Threath (0x00 - 0xFF)
 #define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled
-#define DEFAULT_RATE_TAP_THREATH 1.0
+#define DEFAULT_RATE_TAP_THREATH 1.0 //Max 7.5 , Min 0.3
 #define DURATION_PARAM 0x8C//0x90
 
 //#define  LATENT_PARAM 0x50 //Interval for double tap Detection
@@ -78,7 +78,8 @@ float normalized_z;
 char test_single[1];
 char test_double[1];
 char tapType = 0;
-float tap_threath_rate = DEFAULT_RATE_TAP_THREATH; //Set the rate of tap_threath
+//Variable to adjust acc threath
+float tap_threath_rate; // from Max 7.5 , Min 0.3
 
 //// LED ////
 int led_uid = 100;
@@ -116,7 +117,8 @@ void setup() {
   //Look for taps on the Z axis(01) only.
   writeRegister(TAP_AXES, 0x01);
   //Set the Tap Threshold to 3g
-  writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
+//  writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
+  setTapThreathRate( DEFAULT_RATE_TAP_THREATH );
   //Set the Tap Duration that must be reached
   writeRegister(DURATION, DURATION_PARAM);
 
@@ -256,7 +258,7 @@ void loop() {
 
 
     //// LED ////
-    led_bundleReceive();
+    oscReceive();
     if (led_uid == UID) {
       if (led_val == 1) {
         analogWrite(EYEPIN, LED_PARAM);
@@ -332,7 +334,7 @@ void wifiStart() {
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(10);
-    Serial.print(".");
+    Serial.print("Waiting...");
   }
   Serial.println("");
   Serial.println("WiFi connected");
@@ -362,22 +364,37 @@ void printWifiStatus() {
 
 
 //LED_OSC受信の処理
-void led_bundleReceive() {
+void oscReceive() {
   OSCMessage msgIN;
   int size;
   if ((size = Udp.parsePacket()) > 0) {
     while (size--)
       msgIN.fill(Udp.read());
     if (!msgIN.hasError()) {
-      msgIN.route("/led", handleMessage);
+      msgIN.route("/led", ledHandler);
+      msgIN.route("/tap_threath", tapThreathRateHandler);
+      
     }
   }
 }
 
-//OSC受信したメッセージから、0番目のデータを取り出す
-void handleMessage(OSCMessage & msg, int addrOffset ) {
-  int val = msg.getInt(0);
+//OSC Receive "/led" :: LED Processing
+void ledHandler(OSCMessage & msg, int addrOffset ) {
   led_uid = msg.getInt(0);
-  led_val = msg.getInt(1);
-  
+  led_val = msg.getInt(1);  
 }
+
+//OSC Receive "/acc_threath" :: Update acc_threath
+void tapThreathRateHandler(OSCMessage & msg, int addrOffset ) {
+  setTapThreathRate( msg.getFloat(0) );
+}
+
+
+//Update ACC Threath Rate
+void setTapThreathRate(float fval){
+
+  tap_threath_rate = fval;
+  writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
+
+}
+
