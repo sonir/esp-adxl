@@ -6,8 +6,10 @@
 
 //Tap Threath (0x00 - 0xFF)
 #define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled
-#define DEFAULT_RATE_TAP_THREATH 1.0 //Max 7.5 , Min 0.3
-#define DURATION_PARAM 0x8C//0x90
+#define DEFAULT_RATE_TAP_THREATH 1.0 // //Max 7.5 , Min 0.3
+#define DURATION_PARAM 0xFF//0xEE //0x8C<STABLE> //0x90 //1=625micros 1/32 = 62.5ms 62500
+//For calc 3D Vector
+#define GRAVITY_FIX 240
 
 //#define  LATENT_PARAM 0x50 //Interval for double tap Detection
 //#define WINDOW_PARAM 0x50 //Interbal restart detection after doubletap detection
@@ -80,7 +82,9 @@ char test_double[1];
 char tapType = 0;
 //Variable to adjust acc threath
 float tap_threath_rate; // from Max 7.5 , Min 0.3
-
+float acc_vector;
+float pre_acc = 0.0f;
+float current = 0.0f;
 //// LED ////
 int led_uid = 100;
 int led_val = 100;
@@ -167,10 +171,12 @@ void loop() {
     y  = ((int16_t)values[3] << 8) | (int16_t)values[2];
     z  = ((int16_t)values[5] << 8) | (int16_t)values[4];
 
-    // rescale-xyz
-    normalized_x = normalize(x, RANGE_MAX);
-    normalized_y = normalize(y, RANGE_MAX);
-    normalized_z = normalize(z, RANGE_MAX);
+
+
+//    // rescale-xyz
+//    normalized_x = normalize(x, RANGE_MAX);
+//    normalized_y = normalize(y, RANGE_MAX);
+//    normalized_z = normalize(z, RANGE_MAX);
 
 
     // ログ出力
@@ -184,29 +190,33 @@ void loop() {
     if (tapType > 0) {
       if (tapType == 1) {
         Serial.println("SINGLE TAP");
+
+        //Calc now accerelation
+        acc_vector = calc3dAcc(x,y,z);
         //OSCメッセージをつくる
-        OSCMessage msg4("/tap");
+        OSCMessage msg("/tap");
         //数値をint型＝整数にする（数値はintかfloatのみ
-        msg4.add(UID);
+        msg.add(UID);
+        msg.add(acc_vector);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
-        msg4.send(Udp);
+        msg.send(Udp);
         Udp.endPacket();
-        msg4.empty();
+        msg.empty();
         //パケット終わって、メッセージを空っぽにクリア
         delay(100);
 
       } else {
         Serial.println("DOUBLE TAP");
         //OSCメッセージをつくる
-        OSCMessage msg5("/double_tap");
+        OSCMessage msg("/double_tap");
         //数値をint型＝整数にする（数値はintかfloatのみ）
-        msg5.add(UID);
+        msg.add(UID);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
         //        msg5.send(Udp);
         Udp.endPacket();
-        msg5.empty();
+        msg.empty();
         delay(100);
       }
       detachInterrupt(0);
@@ -214,48 +224,6 @@ void loop() {
       attachInterrupt(0, tapCheck, RISING);
       tapType = 0;
     }
-
-    //send xyz-axes message
-    //X
-    //OSCメッセージをつくる
-    OSCMessage msg1("/ch1");
-    //数値をint型＝整数にする（数値はintかfloatのみ）
-    msg1.add(0);
-    msg1.add((float)normalized_x);
-    //上のOSCメッセージをパケットにして送る
-    Udp.beginPacket(outIp, sendPort);
-    //    msg1.send(Udp);
-    Udp.endPacket();
-    msg1.empty();
-    //パケット終わって、メッセージを空っぽにクリア
-
-    //Y
-    //OSCメッセージをつくる
-    OSCMessage msg2("/ch2");
-    //数値をint型＝整数にする（数値はintかfloatのみ）
-    msg2.add(0);
-    msg2.add((float)normalized_y);
-    //上のOSCメッセージをパケットにして送る
-    Udp.beginPacket(outIp, sendPort);
-    //    msg2.send(Udp);
-    Udp.endPacket();
-    msg2.empty();
-    //パケット終わって、メッセージを空っぽにクリア
-
-
-    //Z
-    //OSCメッセージをつくる
-    OSCMessage msg3("/ch3");
-    //数値をint型＝整数にする（数値はintかfloatのみ）
-    msg3.add(0);
-    msg3.add((float)normalized_z);
-    //上のOSCメッセージをパケットにして送る
-    Udp.beginPacket(outIp, sendPort);
-    //    msg3.send(Udp);
-    Udp.endPacket();
-    msg3.empty();
-    //パケット終わって、メッセージを空っぽにクリア
-
 
     //// LED ////
     oscReceive();
@@ -392,9 +360,31 @@ void tapThreathRateHandler(OSCMessage & msg, int addrOffset ) {
 
 //Update ACC Threath Rate
 void setTapThreathRate(float fval){
-
   tap_threath_rate = fval;
   writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
+
+}
+
+
+//Calculate 3D acceleration
+float calc3dAcc( int16_t x, int16_t y, int16_t z){
+
+  float x2 = x*x;
+  float y2 = y*y;
+  float z2 = z*z;
+  float ans = sqrt( x2+y2+z2 );
+  ans -= GRAVITY_FIX;
+  ans = abs(ans);
+  return ans;
+  
+}
+
+//Lowpass for acc
+float lowpass(float fval){
+
+  current = (0.7*pre_acc) + (0.3*fval);
+  pre_acc = current;
+  return current;
 
 }
 
