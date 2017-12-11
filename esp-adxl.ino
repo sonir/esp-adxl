@@ -2,10 +2,11 @@
 #define LOOP_INTERVAL 100 //
 
 //set UID
-#define UID 1 //1 is A
+#define UID 1 //1 is A 2=B, 3=C, 4=D, 5=E, 6=F
 
 //Tap Threath (0x00 - 0xFF)
-#define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled 
+#define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled
+#define DEFAULT_RATE_TAP_THREATH 1.0
 #define DURATION_PARAM 0x8C//0x90
 
 //#define  LATENT_PARAM 0x50 //Interval for double tap Detection
@@ -77,6 +78,7 @@ float normalized_z;
 char test_single[1];
 char test_double[1];
 char tapType = 0;
+float tap_threath_rate = DEFAULT_RATE_TAP_THREATH; //Set the rate of tap_threath
 
 //// LED ////
 int led_uid = 100;
@@ -114,7 +116,7 @@ void setup() {
   //Look for taps on the Z axis(01) only.
   writeRegister(TAP_AXES, 0x01);
   //Set the Tap Threshold to 3g
-  writeRegister(THRESH_TAP, TAP_THREATH_PARAM); // The most weak = 0 , Themost Hard = 0xFF
+  writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
   //Set the Tap Duration that must be reached
   writeRegister(DURATION, DURATION_PARAM);
 
@@ -147,7 +149,7 @@ void loop() {
   }
 
 
-  //Increment count for timer
+  //Increment count for timer to send OSCf
   count++;
 
   if (count > LOOP_INTERVAL) {
@@ -300,10 +302,10 @@ void tapCheck(void) {
   Serial.println(int(values[0]));
   //DOUBLE TAP detection (1<<5) == 0010 0000
   if (values[0] & (1 << 5)) {
-    tapType = 2;
+    tapType = 2; //DoubleTap
     //SINGLE TAP detection (1<<6) == 0100 0000
   } else if (values[0] & (1 << 6)) {
-    tapType = 1;
+    tapType = 1; //SingleTap
   } else { // undetected
     tapType = 0;
   }
