@@ -2,11 +2,14 @@
 #define LOOP_INTERVAL 100 //
 
 //set UID
-#define UID 1 //1 is A
+#define UID 1 //1 is A 2=B, 3=C, 4=D, 5=E, 6=F
 
 //Tap Threath (0x00 - 0xFF)
-#define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled 
-#define DURATION_PARAM 0x8C//0x90
+#define TAP_THREATH_PARAM 0x22// STD::0x82(130) HIGH::0x64(100) H+ :: 0x5B(91) SUPER.H::0x22(34) <- it is better in assembled
+#define DEFAULT_RATE_TAP_THREATH 1.0 // //Max 7.5 , Min 0.3
+#define DURATION_PARAM 0xFF//0xEE //0x8C<STABLE> //0x90 //1=625micros 1/32 = 62.5ms 62500
+//For calc 3D Vector
+#define GRAVITY_FIX 240
 
 //#define  LATENT_PARAM 0x50 //Interval for double tap Detection
 //#define WINDOW_PARAM 0x50 //Interbal restart detection after doubletap detection
@@ -77,7 +80,11 @@ float normalized_z;
 char test_single[1];
 char test_double[1];
 char tapType = 0;
-
+//Variable to adjust acc threath
+float tap_threath_rate; // from Max 7.5 , Min 0.3
+float acc_vector;
+float pre_acc = 0.0f;
+float current = 0.0f;
 //// LED ////
 int led_uid = 100;
 int led_val = 100;
@@ -114,7 +121,8 @@ void setup() {
   //Look for taps on the Z axis(01) only.
   writeRegister(TAP_AXES, 0x01);
   //Set the Tap Threshold to 3g
-  writeRegister(THRESH_TAP, TAP_THREATH_PARAM); // The most weak = 0 , Themost Hard = 0xFF
+//  writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
+  setTapThreathRate( DEFAULT_RATE_TAP_THREATH );
   //Set the Tap Duration that must be reached
   writeRegister(DURATION, DURATION_PARAM);
 
@@ -147,7 +155,7 @@ void loop() {
   }
 
 
-  //Increment count for timer
+  //Increment count for timer to send OSCf
   count++;
 
   if (count > LOOP_INTERVAL) {
@@ -163,10 +171,12 @@ void loop() {
     y  = ((int16_t)values[3] << 8) | (int16_t)values[2];
     z  = ((int16_t)values[5] << 8) | (int16_t)values[4];
 
-    // rescale-xyz
-    normalized_x = normalize(x, RANGE_MAX);
-    normalized_y = normalize(y, RANGE_MAX);
-    normalized_z = normalize(z, RANGE_MAX);
+
+
+//    // rescale-xyz
+//    normalized_x = normalize(x, RANGE_MAX);
+//    normalized_y = normalize(y, RANGE_MAX);
+//    normalized_z = normalize(z, RANGE_MAX);
 
 
     // ログ出力
@@ -180,29 +190,33 @@ void loop() {
     if (tapType > 0) {
       if (tapType == 1) {
         Serial.println("SINGLE TAP");
+
+        //Calc now accerelation
+        acc_vector = calc3dAcc(x,y,z);
         //OSCメッセージをつくる
-        OSCMessage msg4("/tap");
+        OSCMessage msg("/tap");
         //数値をint型＝整数にする（数値はintかfloatのみ
-        msg4.add(UID);
+        msg.add(UID);
+        msg.add(acc_vector);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
-        msg4.send(Udp);
+        msg.send(Udp);
         Udp.endPacket();
-        msg4.empty();
+        msg.empty();
         //パケット終わって、メッセージを空っぽにクリア
         delay(100);
 
       } else {
         Serial.println("DOUBLE TAP");
         //OSCメッセージをつくる
-        OSCMessage msg5("/double_tap");
+        OSCMessage msg("/double_tap");
         //数値をint型＝整数にする（数値はintかfloatのみ）
-        msg5.add(UID);
+        msg.add(UID);
         //上のOSCメッセージをパケットにして送る
         Udp.beginPacket(outIp, sendPort);
         //        msg5.send(Udp);
         Udp.endPacket();
-        msg5.empty();
+        msg.empty();
         delay(100);
       }
       detachInterrupt(0);
@@ -211,50 +225,8 @@ void loop() {
       tapType = 0;
     }
 
-    //send xyz-axes message
-    //X
-    //OSCメッセージをつくる
-    OSCMessage msg1("/ch1");
-    //数値をint型＝整数にする（数値はintかfloatのみ）
-    msg1.add(0);
-    msg1.add((float)normalized_x);
-    //上のOSCメッセージをパケットにして送る
-    Udp.beginPacket(outIp, sendPort);
-    //    msg1.send(Udp);
-    Udp.endPacket();
-    msg1.empty();
-    //パケット終わって、メッセージを空っぽにクリア
-
-    //Y
-    //OSCメッセージをつくる
-    OSCMessage msg2("/ch2");
-    //数値をint型＝整数にする（数値はintかfloatのみ）
-    msg2.add(0);
-    msg2.add((float)normalized_y);
-    //上のOSCメッセージをパケットにして送る
-    Udp.beginPacket(outIp, sendPort);
-    //    msg2.send(Udp);
-    Udp.endPacket();
-    msg2.empty();
-    //パケット終わって、メッセージを空っぽにクリア
-
-
-    //Z
-    //OSCメッセージをつくる
-    OSCMessage msg3("/ch3");
-    //数値をint型＝整数にする（数値はintかfloatのみ）
-    msg3.add(0);
-    msg3.add((float)normalized_z);
-    //上のOSCメッセージをパケットにして送る
-    Udp.beginPacket(outIp, sendPort);
-    //    msg3.send(Udp);
-    Udp.endPacket();
-    msg3.empty();
-    //パケット終わって、メッセージを空っぽにクリア
-
-
     //// LED ////
-    led_bundleReceive();
+    oscReceive();
     if (led_uid == UID) {
       if (led_val == 1) {
         analogWrite(EYEPIN, LED_PARAM);
@@ -300,10 +272,10 @@ void tapCheck(void) {
   Serial.println(int(values[0]));
   //DOUBLE TAP detection (1<<5) == 0010 0000
   if (values[0] & (1 << 5)) {
-    tapType = 2;
+    tapType = 2; //DoubleTap
     //SINGLE TAP detection (1<<6) == 0100 0000
   } else if (values[0] & (1 << 6)) {
-    tapType = 1;
+    tapType = 1; //SingleTap
   } else { // undetected
     tapType = 0;
   }
@@ -330,7 +302,7 @@ void wifiStart() {
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(10);
-    Serial.print(".");
+    Serial.print("Waiting...");
   }
   Serial.println("");
   Serial.println("WiFi connected");
@@ -360,22 +332,59 @@ void printWifiStatus() {
 
 
 //LED_OSC受信の処理
-void led_bundleReceive() {
+void oscReceive() {
   OSCMessage msgIN;
   int size;
   if ((size = Udp.parsePacket()) > 0) {
     while (size--)
       msgIN.fill(Udp.read());
     if (!msgIN.hasError()) {
-      msgIN.route("/led", handleMessage);
+      msgIN.route("/led", ledHandler);
+      msgIN.route("/tap_threath", tapThreathRateHandler);
+      
     }
   }
 }
 
-//OSC受信したメッセージから、0番目のデータを取り出す
-void handleMessage(OSCMessage & msg, int addrOffset ) {
-  int val = msg.getInt(0);
+//OSC Receive "/led" :: LED Processing
+void ledHandler(OSCMessage & msg, int addrOffset ) {
   led_uid = msg.getInt(0);
-  led_val = msg.getInt(1);
+  led_val = msg.getInt(1);  
+}
+
+//OSC Receive "/acc_threath" :: Update acc_threath
+void tapThreathRateHandler(OSCMessage & msg, int addrOffset ) {
+  setTapThreathRate( msg.getFloat(0) );
+}
+
+
+//Update ACC Threath Rate
+void setTapThreathRate(float fval){
+  tap_threath_rate = fval;
+  writeRegister(THRESH_TAP,  (TAP_THREATH_PARAM*tap_threath_rate) ); // The most weak = 0 , Themost Hard = 0xFF
+
+}
+
+
+//Calculate 3D acceleration
+float calc3dAcc( int16_t x, int16_t y, int16_t z){
+
+  float x2 = x*x;
+  float y2 = y*y;
+  float z2 = z*z;
+  float ans = sqrt( x2+y2+z2 );
+  ans -= GRAVITY_FIX;
+  ans = abs(ans);
+  return ans;
   
 }
+
+//Lowpass for acc
+float lowpass(float fval){
+
+  current = (0.7*pre_acc) + (0.3*fval);
+  pre_acc = current;
+  return current;
+
+}
+
